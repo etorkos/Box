@@ -3,10 +3,10 @@ var mongoose = require('mongoose'),
 
 var DeviceSchema = new Schema({
 	dis: {type: String, required: true},
-	location: [],
+	location: [{lat: Number, lon: Number}],
 	movable: Boolean,
 	curStatus: String,
-	data: []
+	data: [{ val: Number, time: Date }]
 });
 
 mongoose.model('Device', DeviceSchema);

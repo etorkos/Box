@@ -10,7 +10,13 @@ module.exports = function (app) {
 
 router.get('/', function (req, res, next) {
   console.log('hit something');
-  res.json({title: 'Welcome'})
+  Device.findOne({}, function(err, device){
+    if (err) next(err);
+    else {
+      if(device) res.json(device)
+      else res.json({title: 'Welcomes'})
+    }
+  })
 });
 
 router.post('/:id/newdevice', function (req, res, next){
