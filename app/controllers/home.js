@@ -10,6 +10,7 @@ module.exports = function (app) {
 
 router.get('/', function (req, res, next) {
   console.log('hit something');
+  res.json({title: 'Welcome'})
 });
 
 router.post('/:id/newdevice', function (req, res, next){
@@ -23,7 +24,8 @@ router.post('/:id/newdevice', function (req, res, next){
     if(error) return next(error);
     else {
       cache[body.name] = device._id;
-      res.status(200).send(device);
+      res.status(200);
+      res.json(device);
     }
 
   })

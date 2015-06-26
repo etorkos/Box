@@ -4,7 +4,7 @@ var mongoose = require('mongoose'),
 var DeviceSchema = new Schema({
 	dis: {type: String, required: true},
 	location: [],
-	movable: false,
+	movable: Boolean,
 	curStatus: String,
 	data: []
 });

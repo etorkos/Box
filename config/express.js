@@ -7,6 +7,7 @@ var cookieParser = require('cookie-parser');
 var bodyParser = require('body-parser');
 var compress = require('compression');
 var methodOverride = require('method-override');
+var exphbs  = require('express-handlebars');
 
 module.exports = function(app, config) {
   app.engine('handlebars', exphbs({
@@ -14,6 +15,8 @@ module.exports = function(app, config) {
     defaultLayout: 'main',
     partialsDir: [config.root + '/app/views/partials/']
   }));
+  app.set('views', config.root + '/app/views');
+  app.set('view engine', 'handlebars');
   var env = process.env.NODE_ENV || 'development';
   app.locals.ENV = env;
   app.locals.ENV_DEVELOPMENT = env == 'development';

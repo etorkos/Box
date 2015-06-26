@@ -4,7 +4,7 @@ var express = require('express'),
   mongoose = require('mongoose'),
   https = require('https'),
   fs = require('fs');
-  var exphbs  = require('express-handlebars');
+
 
 
 //set up backend
