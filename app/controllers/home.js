@@ -4,6 +4,7 @@ var express = require('express'),
   Device = mongoose.model('Device');
 
 var cache = [];
+
 module.exports = function (app) {
   app.use('/', router);
 };
@@ -21,28 +22,61 @@ router.get('/', function (req, res, next) {
 
 router.post('/:id/newdevice', function (req, res, next){
   var id = req.params.id;
-  var body = req.body;
+  var body = req.body; // assume one parameter is id intrinsically given to device, to be cached
   console.log('hit body with:', body);
-  //authenticate user
-  //post to db
-  console.log('Device ',Device);
+  //authenticate user session
+  console.log('Device ', Device);
   Device.create( body , function(error, device) {
-    if(error) return next(error);
+    if(error) {
+      console.log("error in submit request");
+      return next(error);
+    }
     else {
-      cache[body.name] = device._id;
+      console.log('finshed db submit', device)
+      cache[body.givenID] = device.givenID;
       res.status(200);
       res.json(device);
     }
-
   })
   
 
-})
+});
 
 router.put('/:myId/points', function (req, res, next){
+  
   var id = req.params.myId;
-  var point = req.body;  
+  var point = req.body;  //expects to have keys givenID, val, and time
+  console.log('Hit points', point);
+  //authenticate user session
+  if( point.givenID && cache[point.givenID]){
+    console.log('precached');
+    Device.findByIdAndUpdate({"_id": cache[point.givenID]}, {$push: { data: { val: point.val, time: point.time}}}, function (err, confirm){
+      if(err) next(err);
+      else {
+        res.json(confirm);
+      }
+    });
+  }
+  else if (point.givenID) {
+    Device.findOne({givenID: point.givenID}).update({$push: { data: { val: point.val, time: point.time}}}, function(err, confirm){
+      if(err) next(err);
+      else {
+        res.json(confirm);
+      }
+    })
+  }
+});
 
-  //post point to db
-
+router.get('/:myId/points/:devID', function (req, res, next){
+  var id = req.params.myId;
+  var devID = req.params.devID;
+  if( devID && cache[devID]){
+    Device.findOne({givenID: point.givenID}, function (err, device){
+      if(err) next(err);
+      else {
+        console.log('finshed Find with ', device);
+        res.json(device);
+      }
+    })
+  }
 })

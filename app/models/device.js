@@ -3,6 +3,7 @@ var mongoose = require('mongoose'),
 
 var DeviceSchema = new Schema({
 	dis: {type: String, required: true},
+	givenID: String,
 	location: [{lat: Number, lon: Number}],
 	movable: Boolean,
 	curStatus: String,

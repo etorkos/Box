@@ -19,7 +19,6 @@ cd intelBox
 
 #generate https keys
 cd config
-openssl genrsa -out key.pem
-openssl req -new -key key.pem -out csr.pem
-openssl x509 -req -days 9999 -in csr.pem -signkey key.pem -out cert.pem
-rm csr.pem
+
+openssl genrsa 1024 > key.pem
+openssl req -x509 -new -key key.pem > cert.pem

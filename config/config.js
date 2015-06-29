@@ -9,6 +9,7 @@ var config = {
       name: 'intelbox'
     },
     port: 3000,
+    securePort: 8443,
     db: 'mongodb://localhost/intelbox-development'
   },
 
@@ -18,6 +19,7 @@ var config = {
       name: 'intelbox'
     },
     port: 3000,
+    securePort: 8443,
     db: 'mongodb://localhost/intelbox-test'
   },
 
@@ -27,6 +29,7 @@ var config = {
       name: 'intelbox'
     },
     port: 3000,
+    securePort: 443,
     db: 'mongodb://localhost/intelbox-production'
   }
 };
