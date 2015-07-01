@@ -7,6 +7,7 @@ var DeviceSchema = new Schema({
 	location: [{lat: Number, lon: Number}],
 	movable: Boolean,
 	curStatus: String,
+	rule: { type: Schema.Types.ObjectId, ref: 'Rule'},
 	data: [{ val: Number, time: Date }]
 });
 

@@ -1,8 +1,8 @@
 var express = require('express'),
   router = express.Router(),
   mongoose = require('mongoose'),
-  Device = mongoose.model('Device');
-
+  Device = mongoose.model('Device'),
+  Rule = mongoose.model('Rule');
 var cache = [];
 
 module.exports = function (app) {
@@ -10,14 +10,7 @@ module.exports = function (app) {
 };
 
 router.get('/', function (req, res, next) {
-  console.log('hit something');
-  Device.findOne({}, function(err, device){
-    if (err) next(err);
-    else {
-      if(device) res.json(device)
-      else res.json({title: 'Welcomes'})
-    }
-  })
+  res.send("welcome");
 });
 
 router.post('/:id/newdevice', function (req, res, next){
@@ -94,3 +87,61 @@ router.get('/:myId/points/:devID', function (req, res, next){
     })
   }
 });
+
+
+
+router.get(':myId/rules', function (req, res, next){
+  Rule.find({}).exec()
+  .then(function(rules){
+    res.json(rules);
+  }).catch(function(e){
+    res.status(500).send(e);
+  });
+});
+
+router.post('/:myId/rule', function (req, res, next){
+  var id = req.params.myId;
+  var body = req.body;
+  if(body.sensorType && body.name){ //body must have name and type parameters and 
+    var request = {sensorType: body.sensorType, name: body.name};
+    if(body.topBound) request.topBound = body.topBound;
+    if(body.bottomBound) request.bottomBound = body.bottomBound;
+    //check if rule already exists, make a new rule, add rule to device
+    Rule.findOne({name: body.name}).exec()
+    .then( function ( findOne ){
+      console.log(findOne);
+      if(!findOne) return Rule.create(request).exec();
+      else throw "Rule already in Database";
+    }).then(function(createdRule){
+      res.send("rule created");
+    }).catch(function(e){
+      res.status(500).send(e);
+    })
+  }
+  else {
+    res.status(400).send("Need to include sensorType and name in rule post");
+  }
+});
+
+router.put('/:myId/assign', function (req, res, next){
+    //assign rule to a device
+    var rule = req.body.ruleName;
+    var deviceName = req.body.deviceName;
+
+    Rule.find({name: rule}).exec()
+    .then(function(rule){
+      if(!rule) throw "rule is not defined";
+      else return Device.findOne({name: deviceName}).exec();
+    }).then(function(device){
+      if(!device) throw "device is not defined";
+      else {
+        device.rule = rule._id;
+        return device.save().exec();
+      }
+    }).then(function(save){
+      if(!save) throw "error saving";
+      else res.status(201).send('Rule applied for', device.name);
+    }).catch(function(e){
+      res.status(500).send(e);
+    })
+})
