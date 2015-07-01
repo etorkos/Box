@@ -1,8 +1,13 @@
 var CronJob = require('cron').CronJob,
     request = require('request'),
+    express = require('express'),
+  	router = express.Router(),
     mongoose = require('mongoose'),
   	Device = mongoose.model('Device');
 
+module.exports = function(app){
+	
+}
 
 var serverUpload = new CronJob('00 * * * * *', function(){
 	//rough check to see if cache is populated. will need more integration

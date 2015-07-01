@@ -2,6 +2,7 @@ var express = require('express'),
   router = express.Router(),
   mongoose = require('mongoose'),
   Device = mongoose.model('Device'),
+  Promise = mongoose.model('Bluebird'),
   Rule = mongoose.model('Rule');
 var cache = [];
 
@@ -94,11 +95,12 @@ router.get(':myId/rules', function (req, res, next){
   Rule.find({}).exec()
   .then(function(rules){
     res.json(rules);
-  }).catch(function(e){
+  }).then(null, function(e){
     res.status(500).send(e);
   });
 });
 
+//sending out a 500 error
 router.post('/:myId/rule', function (req, res, next){
   var id = req.params.myId;
   var body = req.body;
@@ -107,14 +109,17 @@ router.post('/:myId/rule', function (req, res, next){
     if(body.topBound) request.topBound = body.topBound;
     if(body.bottomBound) request.bottomBound = body.bottomBound;
     //check if rule already exists, make a new rule, add rule to device
+    console.log('data into post', request);
     Rule.findOne({name: body.name}).exec()
     .then( function ( findOne ){
-      console.log(findOne);
-      if(!findOne) return Rule.create(request).exec();
-      else throw "Rule already in Database";
+      console.log('findOne', findOne);
+      if(!findOne) return Rule.create(request); 
+      else throw new Error("Rule already in Database"); 
     }).then(function(createdRule){
-      res.send("rule created");
-    }).catch(function(e){
+      console.log('rule created');
+      res.status(201).send("rule created");
+    }).then(null, function(e){
+      console.log('error', e);
       res.status(500).send(e);
     })
   }
@@ -130,18 +135,31 @@ router.put('/:myId/assign', function (req, res, next){
 
     Rule.find({name: rule}).exec()
     .then(function(rule){
-      if(!rule) throw "rule is not defined";
+      if(!rule) throw new Error("rule is not defined");
       else return Device.findOne({name: deviceName}).exec();
     }).then(function(device){
-      if(!device) throw "device is not defined";
+      if(!device) throw new Error("device is not defined");
       else {
         device.rule = rule._id;
         return device.save().exec();
       }
     }).then(function(save){
-      if(!save) throw "error saving";
+      if(!save) throw new Error("error saving");
       else res.status(201).send('Rule applied for', device.name);
-    }).catch(function(e){
+    }).then(null, function(e){
       res.status(500).send(e);
     })
-})
+});
+
+
+function inAllowableRange (device, id){
+  Alert.findById(id)
+  .then(function(alert){
+    if(alert.topBound && device.val > alert.topBound) throw new Error(device.name, "is above the acceptable range");
+    else if(alert.bottomBound && device.val < alert.bottomBound) throw new Error(device.name, "is above the below range");
+    else return Promise.resolve(true);
+  }).then(null, function(e){
+    //send off command to send an alert
+  })
+}
+
