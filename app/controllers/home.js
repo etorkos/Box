@@ -27,10 +27,12 @@ router.post('/:id/newdevice', function (req, res, next){
   //authenticate user session
   Device.findOne({givenID: body.givenID}, function (err, deviceCheck){
     if (err) next(err);
-    else if (deviceCheck._id){
+    else if (deviceCheck && deviceCheck._id){
+      console.log('server response', deviceCheck);
       res.status(500).send({error: "Device already registered"});
     }
     else {
+
       Device.create( body , function(error, device) {
         if(error) {
           console.log("error in submit request");
@@ -62,12 +64,20 @@ router.put('/:myId/points', function (req, res, next){
     });
   }
   else if (point.givenID) {
-    Device.findOne({givenID: point.givenID}).update({$push: { data: { val: point.val, time: point.time}}}, function(err, confirm){
-      if(err) next(err);
-      else {
-        res.json(confirm);
+    Device.findOne({givenID: point.givenID})
+    .then(function(error, device){
+      if (!device){
+        res.status(500).send("Device not registered");
       }
-    })
+      else {
+        device.update({$push: { data: { val: point.val, time: point.time}}}, function(err, confirm){
+          if(err) next(err);
+          else {
+            res.json(confirm);
+          }
+        })
+      }
+    }); 
   }
 });
 
@@ -83,4 +93,4 @@ router.get('/:myId/points/:devID', function (req, res, next){
       }
     })
   }
-})
+});

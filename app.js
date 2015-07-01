@@ -31,10 +31,10 @@ httpsServer.listen(config.securePort, function(){
 	console.log('HTTPS Server started on port ', config.securePort);
 });
 
-// var httpServer = http.createServer(app);
-// httpServer.listen(config.port, function(){
-// 	console.log('http Server started on port:', config.port);
-// })
+var httpServer = http.createServer(app);
+httpServer.listen(config.port, function(){
+	console.log('http Server started on port:', config.port);
+})
 
 // app.listen(config.port);
 
