@@ -2,9 +2,12 @@ var express = require('express'),
   router = express.Router(),
   mongoose = require('mongoose'),
   Device = mongoose.model('Device'),
-  Promise = mongoose.model('Bluebird'),
-  Rule = mongoose.model('Rule');
+  Promise = require('bluebird'),
+  Rule = mongoose.model('Rule'),
+  cron = require('./cron.js');
+
 var cache = [];
+// cron.
 
 module.exports = function (app) {
   app.use('/', router);
