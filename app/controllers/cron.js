@@ -2,29 +2,32 @@ var CronJob = require('cron').CronJob,
     request = require('request'),
     express = require('express'),
   	router = express.Router(),
+  	Promise = require('bluebird'),
     mongoose = require('mongoose'),
   	Device = mongoose.model('Device');
 
-module.exports = {
+  	var cache = [{thing: 'Stuff'}]; 
 
-	(function(){
-		new CronJob('00 * * * * *', function(){
+	exports.cronJob = new CronJob({
+		cronTime: '00 * * * * *', 
+		onTick: function(){
 			var timeOneMinuteAgo = new Date(Date.parse(new Date())-60000);
 			var myCache = cache;
 			cache = [];
 			//rough check to see if cache is populated. will need more integration
-			console.log('CronJob Executing');
+			console.log('CronJob Executing', cache);
 			if (cache && cache.length > 100){
 				//pull down all data points from mongo, where ids are in cache, points are the last minute || points are since last update
 				//check to see size of points (10 mb is max for a body post)
 				//send with request post 
 			}
 			else{
-				Device.find({}).exec()
-				.map(devices, function(box){
+				var devices = Device.find({}).exec()
+				Promise.map(devices, function(box){
 						var data = [];
 						return Promise.all(box.data.map(function(point){
-							if ( point.date > timeNow ) return data.push(date);
+							// if ( point.date > timeNow ) return data.push(date);
+							if ( point.date > timeNow ) return point;
 						}));
 						return myData;
 				}).then(function(dataToUpload){
@@ -33,10 +36,13 @@ module.exports = {
 					console.log('error:', e);
 				});
 			}
-		});
-	})()
+		}, 
+		start: false,
+		context: cache });
+// exports.test = 
 
-	function sendToServer (method, route, data){
+
+	exports.sendToServer = function (method, route, data){
 	//method: PUT, POST, GET, DELETE
 	//route: exact route to server
 	//data: JSON formatted object (will need to be JSON.parse b/c its a string)
@@ -58,7 +64,6 @@ module.exports = {
 					}
 		});
 	}
-}
 
 
 

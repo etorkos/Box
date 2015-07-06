@@ -1,13 +1,18 @@
 var express = require('express'),
   router = express.Router(),
+  request = require('request'),
   mongoose = require('mongoose'),
   Device = mongoose.model('Device'),
   Promise = require('bluebird'),
   Rule = mongoose.model('Rule'),
-  cron = require('./cron.js');
+  CronJob = require('cron').CronJob;
 
-var cache = [];
-// cron.
+  
+
+var cache = [{thing: 'Stuff'}];
+// serverUpload.start();
+// var cron = require('./cron.js').cronJob;
+//   cron.start();
 
 module.exports = function (app) {
   app.use('/', router);
@@ -53,7 +58,7 @@ router.put('/:myId/points', function (req, res, next){
   //authenticate user session
   if( point.givenID && cache[point.givenID]){
     console.log('precached');
-    Device.findByIdAndUpdate({"_id": cache[point.givenID]}, {$push: { data: { val: point.val, time: point.time}}}, function (err, confirm){
+    Device.findByIdAndUpdate({"_id": cache[point.givenID]}, {$push: { data: { val: Number(point.val), time: point.time}}}, function (err, confirm){
       if(err) next(err);
       else {
         res.json(confirm);
@@ -62,12 +67,13 @@ router.put('/:myId/points', function (req, res, next){
   }
   else if (point.givenID) {
     Device.findOne({givenID: point.givenID})
-    .then(function(error, device){
+    .then(function(device, error){
+      console.log('--------',point.givenID, error, device);
       if (!device){
         res.status(500).send("Device not registered");
       }
       else {
-        device.update({$push: { data: { val: point.val, time: point.time}}}, function(err, confirm){
+        device.update({$push: { data: { val: Number(point.val), time: point.time}}}, function(err, confirm){
           if(err) next(err);
           else {
             res.json(confirm);
@@ -165,4 +171,82 @@ function inAllowableRange (device, id){
     //send off command to send an alert
   })
 }
+
+var serverUpload =  new CronJob({
+    cronTime: '00 * * * * *', 
+    onTick: function(){
+      var timeOneMinuteAgo = new Date(Date.parse(new Date())-60000);
+      var timeTenMinutesAgo = new Date(Date.parse(new Date())-600000);
+      var myCache = cache;
+      //rough check to see if cache is populated. will need more integration
+      console.log('CronJob Executing', cache);
+      // cache = [];
+      if (cache && cache.length > 100){
+        console.log('cache validated');
+        //pull down all data points from mongo, where ids are in cache, points are the last minute || points are since last update
+        //check to see size of points (10 mb is max for a body post)
+        //send with request post 
+      }
+      else{
+        var devices = Device.find({}).exec();
+        console.log('devices', devices);
+        Promise.map( devices, function(box){
+            var data = []; //assumes there is already something in DB
+            console.log('box', box);
+            // return Promise.map(box.data,  function(point){
+            //   console.log('inside loop', point, timeOneMinuteAgo)
+            //   if ( point.time > timeTenMinutesAgo ) return point;
+            // });
+            box.data.forEach(function(point){
+              console.log('inside loop', point, timeOneMinuteAgo)
+              if ( point.time > timeTenMinutesAgo ) data.push(point);
+            });
+            console.log(data);
+            return data;
+
+            // return myData;
+        }).then(function(dataToUpload){
+          console.log('dataToUpload', dataToUpload);
+          if(dataToUpload.length < 1) throw new Error('No devices to upload');
+          else{
+            dataToUpload.forEach(function(deviceData, index){
+              if(deviceData.length > 0){
+                sendToServer('POST', '/points', deviceData);
+              }
+              else { console.log("device", index, "has no new data to upload"); }
+            });
+          }
+        }).catch(function(e){
+          console.log('error:', e);
+        });
+      }
+    }, 
+    start: true,
+    context: cache });
+
+
+  function sendToServer (method, route, data){
+  //method: PUT, POST, GET, DELETE
+  //route: exact route to server
+  //data: JSON formatted object (will need to be JSON.parse b/c its a string)
+  //does it need to be promisified?
+    request.post(
+      { method: 'PUT',
+        uri: 'http://ec2-54-152-180-31.compute-1.amazonaws.com' + route, 
+        multipart: [{
+          'content-type': 'application/json',
+          body: JSON.stringify(data)
+        }]
+      }, function (error, response, body){
+          if (response.statusCode == 201 || response.statusCode == 200){
+            console.log('data saved to server');
+            return body;
+          }
+          else {
+            console.log('Error:', response.statusCode, error);
+            console.log(body);
+            return error;
+          }
+    });
+  }
 
