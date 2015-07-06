@@ -9,7 +9,7 @@ var express = require('express'),
 
   
 
-var cache = [{thing: 'Stuff'}];
+var cache = {};
 // serverUpload.start();
 // var cron = require('./cron.js').cronJob;
 //   cron.start();
@@ -34,7 +34,6 @@ router.post('/:id/newdevice', function (req, res, next){
       res.status(500).send({error: "Device already registered"});
     }
     else {
-
       Device.create( body , function(error, device) {
         if(error) {
           console.log("error in submit request");
@@ -54,34 +53,56 @@ router.post('/:id/newdevice', function (req, res, next){
 router.put('/:myId/points', function (req, res, next){
   var id = req.params.myId;
   var point = req.body;  //expects to have keys givenID, val, and time
-  console.log('Hit points', point);
+  // //Refactoring into promises
+  // var device; //holder for promise chain
+  // var promise;
+  // var ruleId;
   //authenticate user session
-  if( point.givenID && cache[point.givenID]){
-    console.log('precached');
-    Device.findByIdAndUpdate({"_id": cache[point.givenID]}, {$push: { data: { val: Number(point.val), time: point.time}}}, function (err, confirm){
-      if(err) next(err);
-      else {
-        res.json(confirm);
-      }
-    });
-  }
-  else if (point.givenID) {
-    Device.findOne({givenID: point.givenID})
-    .then(function(device, error){
-      console.log('--------',point.givenID, error, device);
-      if (!device){
-        res.status(500).send("Device not registered");
-      }
-      else {
-        device.update({$push: { data: { val: Number(point.val), time: point.time}}}, function(err, confirm){
-          if(err) next(err);
-          else {
-            res.json(confirm);
+  // if( point.givenID && cache[point.givenID]){
+  //   device = Device.findById({"_id": cache[point.givenID]});
+  //   promise = device.update({$push: { data: { val: Number(point.val), time: point.time}}}).exec();
+  //   console.log('precached');
+  // }
+  // else if (point.givenID){
+  //   device = Device.findOne({givenID: point.givenID});
+  //   promise = device.update({$push: { data: { val: Number(point.val), time: point.time}}}).exec();
+  //   console.log('not cached');
+  //   //cache[point.givenID] = device._id;
+  // }
+  // else {
+  //   res.status(404).send("Device ID not supplied");
+  // }
+  // promise.then(function(confirm){
+  //     console.log("update,", confirm,"into check section -\-\-\-\-\-\-\-\-\- ");
+  //     if(ruleId){
+  //       inAllowableRange(point, ruleId);
+  //       res.status(201).send("Success");
+  //     }
+  //     else{
+  //       res.status(201).send("Success");
+  //     }
+  // }).then(null, function(e){
+  //   console.log("ERROR", e);
+  //   res.status(500).send(e);
+  // });
+
+  Device.findOne({givenID: point.givenID}, function(err, doc){
+    // console.log('doc', doc)
+    if(doc){
+      doc.update({$push: { data: { val: Number(point.val), time: point.time}}}, function(err, confirm){
+        // console.log('confirm', confirm);
+        if(err) next(err);
+        else{
+          if(doc.rule){
+            inAllowableRange(point, doc.rule);
+            res.status(201).send("success");
           }
-        })
-      }
-    }); 
-  }
+          else res.status(201).send("success");
+        }
+      });
+    }
+
+  });
 });
 
 router.get('/:myId/points/:devID', function (req, res, next){
@@ -97,8 +118,6 @@ router.get('/:myId/points/:devID', function (req, res, next){
     })
   }
 });
-
-
 
 router.get(':myId/rules', function (req, res, next){
   Rule.find({}).exec()
@@ -139,37 +158,61 @@ router.post('/:myId/rule', function (req, res, next){
 
 router.put('/:myId/assign', function (req, res, next){
     //assign rule to a device
-    var rule = req.body.ruleName;
+    var newRule = req.body.ruleName;
     var deviceName = req.body.deviceName;
-
-    Rule.find({name: rule}).exec()
+    var ruleFromServer;
+    console.log('begininning assigning process with', req.body);
+    Rule.findOne({name: newRule}).exec()
     .then(function(rule){
-      if(!rule) throw new Error("rule is not defined");
-      else return Device.findOne({name: deviceName}).exec();
-    }).then(function(device){
-      if(!device) throw new Error("device is not defined");
+      if(!rule) { 
+        // console.log('rule is not defined');
+        throw new Error("rule is not defined");
+      }
       else {
-        device.rule = rule._id;
-        return device.save().exec();
+        // console.log("rule", rule);
+        ruleFromServer = rule;
+        return Device.findOne({dis: deviceName}).exec();
+      }
+    }).then(function(device){
+      if(!device) {
+        console.log('device is not defined');
+        throw new Error("device is not defined");
+      }
+      else {
+        device.rule = ruleFromServer._id;
+        console.log('Device', device, "rule", ruleFromServer._id);
+        return device.save();
       }
     }).then(function(save){
       if(!save) throw new Error("error saving");
-      else res.status(201).send('Rule applied for', device.name);
+      else {
+        console.log('save', save);
+        ruleFromServer = null;
+        res.status(201).send('Rule applied for', device.name);
+      }
     }).then(null, function(e){
+      console.log('ERROR', e);
+      ruleFromServer = null;
       res.status(500).send(e);
     })
 });
 
 
-function inAllowableRange (device, id){
-  Alert.findById(id)
+function inAllowableRange (point, id){
+  //wants rule_id and point values
+  return Rule.findById(id)
   .then(function(alert){
-    if(alert.topBound && device.val > alert.topBound) throw new Error(device.name, "is above the acceptable range");
-    else if(alert.bottomBound && device.val < alert.bottomBound) throw new Error(device.name, "is above the below range");
-    else return Promise.resolve(true);
+    if(alert.topBound && point.val > alert.topBound) throw new Error(point.name, "is above the acceptable range");
+    else if(alert.bottomBound && point.val < alert.bottomBound) throw new Error(point.name, "is above the below range");
+    else return allowablePromise.resolve();
   }).then(null, function(e){
-    //send off command to send an alert
-  })
+    //send off command to send an alert to server
+    sendAlertToServer();
+  });
+}
+
+function sendAlertToServer (){ 
+  console.log("ALERT!!!!!");
 }
 
 var serverUpload =  new CronJob({
@@ -189,31 +232,32 @@ var serverUpload =  new CronJob({
       }
       else{
         var devices = Device.find({}).exec();
-        console.log('devices', devices);
+        // console.log('devices', devices);
         Promise.map( devices, function(box){
             var data = []; //assumes there is already something in DB
-            console.log('box', box);
-            // return Promise.map(box.data,  function(point){
-            //   console.log('inside loop', point, timeOneMinuteAgo)
-            //   if ( point.time > timeTenMinutesAgo ) return point;
-            // });
             box.data.forEach(function(point){
-              console.log('inside loop', point, timeOneMinuteAgo)
-              if ( point.time > timeTenMinutesAgo ) data.push(point);
+              // console.log('inside loop', point, timeOneMinuteAgo)
+              // console.log('point.time', Date.parse(point.time),  "timeOneMinuteAgo", Date.parse(timeTenMinutesAgo), Date.parse(point.time) > Date.parse(timeTenMinutesAgo));
+              if ( Date.parse(point.time) > Date.parse(timeTenMinutesAgo) ) data.push(point);
             });
-            console.log(data);
-            return data;
+            // console.log(data);
+            return {dis: box.dis, data: data};
 
             // return myData;
         }).then(function(dataToUpload){
-          console.log('dataToUpload', dataToUpload);
+          // console.log('dataToUpload', dataToUpload);
           if(dataToUpload.length < 1) throw new Error('No devices to upload');
           else{
+            console.log('data to upload', dataToUpload);
             dataToUpload.forEach(function(deviceData, index){
-              if(deviceData.length > 0){
-                sendToServer('POST', '/points', deviceData);
+              // console.log('possible submission',deviceData.length);
+              if(deviceData.data.length > 0){
+                // console.log("device", deviceData , index, "is uploading new Data");
+                sendToServer('POST', '/', deviceData);
               }
-              else { console.log("device", index, "has no new data to upload"); }
+              else { 
+                // console.log("device", deviceData.dis, "has no new data to upload"); 
+              }
             });
           }
         }).catch(function(e){
@@ -230,14 +274,18 @@ var serverUpload =  new CronJob({
   //route: exact route to server
   //data: JSON formatted object (will need to be JSON.parse b/c its a string)
   //does it need to be promisified?
-    request.post(
-      { method: 'PUT',
-        uri: 'http://ec2-54-152-180-31.compute-1.amazonaws.com' + route, 
-        multipart: [{
-          'content-type': 'application/json',
-          body: JSON.stringify(data)
-        }]
-      }, function (error, response, body){
+    console.log('data to be uploaded', data);
+    // request.post(
+    //   { method: 'POST',
+    //     uri: 'http://ec2-52-6-65-109.compute-1.amazonaws.com' + route, 
+    //     multipart: [{
+    //       'content-type': 'application/json',
+    //       body: JSON.stringify(data)
+    //     }]
+    //   }, 
+    request.post('http://ec2-52-6-65-109.compute-1.amazonaws.com:1337/', data,
+      function (error, response, body){
+        console.log('err', error, 'response', response, 'body', body);
           if (response.statusCode == 201 || response.statusCode == 200){
             console.log('data saved to server');
             return body;
