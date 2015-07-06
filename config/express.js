@@ -37,7 +37,9 @@ module.exports = function(app, config) {
   // controllers.forEach(function (controller) {
   //   require(controller)(app);
   // });
+  //ROUTING ADD HERE
   require(config.root + '/app/controllers/home.js')(app);
+  require(config.root + '/app/controllers/rule.js')(app);
 
   app.use(function (req, res, next) {
     var err = new Error('Not Found');
