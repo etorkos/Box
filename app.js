@@ -35,6 +35,3 @@ var httpServer = http.createServer(app);
 httpServer.listen(config.port, function(){
 	console.log('http Server started on port:', config.port);
 })
-
-// app.listen(config.port);
-
